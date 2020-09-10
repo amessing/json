@@ -1,12 +1,12 @@
 /*
     __ _____ _____ _____
  __|  |   __|     |   | |  JSON for Modern C++ (test suite)
-|  |  |__   |  |  | | | |  version 3.5.0
+|  |  |__   |  |  | | | |  version 3.9.1
 |_____|_____|_____|_|___|  https://github.com/nlohmann/json
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 SPDX-License-Identifier: MIT
-Copyright (c) 2013-2018 Niels Lohmann <http://nlohmann.me>.
+Copyright (c) 2013-2019 Niels Lohmann <http://nlohmann.me>.
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
 of this software and associated  documentation files (the "Software"), to deal
@@ -27,14 +27,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "catch.hpp"
+#include "doctest_compatibility.h"
 
 #define private public
 #include <nlohmann/json.hpp>
 using nlohmann::json;
+#undef private
 
 #include <valarray>
 
+namespace
+{
 class SaxEventLogger
 {
   public:
@@ -71,6 +74,21 @@ class SaxEventLogger
     bool string(std::string& val)
     {
         events.push_back("string(" + val + ")");
+        return true;
+    }
+
+    bool binary(json::binary_t& val)
+    {
+        std::string binary_contents = "binary(";
+        std::string comma_space = "";
+        for (auto b : val)
+        {
+            binary_contents.append(comma_space);
+            binary_contents.append(std::to_string(static_cast<int>(b)));
+            comma_space = ", ";
+        }
+        binary_contents.append(")");
+        events.push_back(binary_contents);
         return true;
     }
 
@@ -125,7 +143,7 @@ class SaxEventLogger
         return false;
     }
 
-    std::vector<std::string> events;
+    std::vector<std::string> events {};
     bool errored = false;
 };
 
@@ -161,6 +179,11 @@ class SaxCountdown : public nlohmann::json::json_sax_t
     }
 
     bool string(std::string&) override
+    {
+        return events_left-- > 0;
+    }
+
+    bool binary(json::binary_t&) override
     {
         return events_left-- > 0;
     }
@@ -201,13 +224,14 @@ class SaxCountdown : public nlohmann::json::json_sax_t
 
 json parser_helper(const std::string& s);
 bool accept_helper(const std::string& s);
+void comments_helper(const std::string& s);
 
 json parser_helper(const std::string& s)
 {
     json j;
     json::parser(nlohmann::detail::input_adapter(s)).parse(true, j);
 
-    // if this line was reached, no exception ocurred
+    // if this line was reached, no exception occurred
     // -> check if result is the same without exceptions
     json j_nothrow;
     CHECK_NOTHROW(json::parser(nlohmann::detail::input_adapter(s), nullptr, false).parse(true, j_nothrow));
@@ -218,17 +242,19 @@ json parser_helper(const std::string& s)
     json::sax_parse(s, &sdp);
     CHECK(j_sax == j);
 
+    comments_helper(s);
+
     return j;
 }
 
 bool accept_helper(const std::string& s)
 {
-    CAPTURE(s);
+    CAPTURE(s)
 
     // 1. parse s without exceptions
     json j;
     CHECK_NOTHROW(json::parser(nlohmann::detail::input_adapter(s), nullptr, false).parse(true, j));
-    const bool ok_noexcept = not j.is_discarded();
+    const bool ok_noexcept = !j.is_discarded();
 
     // 2. accept s
     const bool ok_accept = json::parser(nlohmann::detail::input_adapter(s)).accept(true);
@@ -239,7 +265,7 @@ bool accept_helper(const std::string& s)
     // 4. parse with SAX (compare with relaxed accept result)
     SaxEventLogger el;
     CHECK_NOTHROW(json::sax_parse(s, &el, json::input_format_t::json, false));
-    CHECK(json::parser(nlohmann::detail::input_adapter(s)).accept(false) == not el.errored);
+    CHECK(json::parser(nlohmann::detail::input_adapter(s)).accept(false) == !el.errored);
 
     // 5. parse with simple callback
     json::parser_callback_t cb = [](int, json::parse_event_t, json&)
@@ -247,14 +273,55 @@ bool accept_helper(const std::string& s)
         return true;
     };
     json j_cb = json::parse(s, cb, false);
-    const bool ok_noexcept_cb = not j_cb.is_discarded();
+    const bool ok_noexcept_cb = !j_cb.is_discarded();
 
     // 6. check if this approach came to the same result
     CHECK(ok_noexcept == ok_noexcept_cb);
 
-    // 7. return result
+    // 7. check if comments are properly ignored
+    if (ok_accept)
+    {
+        comments_helper(s);
+    }
+
+    // 8. return result
     return ok_accept;
 }
+
+void comments_helper(const std::string& s)
+{
+    json _;
+
+    // parse/accept with default parser
+    CHECK_NOTHROW(_ = json::parse(s));
+    CHECK(json::accept(s));
+
+    // parse/accept while skipping comments
+    CHECK_NOTHROW(_ = json::parse(s, nullptr, false, true));
+    CHECK(json::accept(s, true));
+
+    std::vector<std::string> json_with_comments;
+
+    // start with a comment
+    json_with_comments.push_back(std::string("// this is a comment\n") + s);
+    json_with_comments.push_back(std::string("/* this is a comment */") + s);
+    // end with a comment
+    json_with_comments.push_back(s + "// this is a comment");
+    json_with_comments.push_back(s + "/* this is a comment */");
+
+    // check all strings
+    for (const auto& json_with_comment : json_with_comments)
+    {
+        CAPTURE(json_with_comment)
+        CHECK_THROWS_AS(_ = json::parse(json_with_comment), json::parse_error);
+        CHECK(!json::accept(json_with_comment));
+
+        CHECK_NOTHROW(_ = json::parse(json_with_comment, nullptr, true, true));
+        CHECK(json::accept(json_with_comment, true));
+    }
+}
+
+} // namespace
 
 TEST_CASE("parser class")
 {
@@ -402,8 +469,9 @@ TEST_CASE("parser class")
                     // uses an iterator range.
                     std::string s = "\"1\"";
                     s[1] = '\0';
-                    CHECK_THROWS_AS(json::parse(s.begin(), s.end()), json::parse_error&);
-                    CHECK_THROWS_WITH(json::parse(s.begin(), s.end()), "[json.exception.parse_error.101] parse error at line 1, column 2: syntax error while parsing value - invalid string: control character U+0000 (NUL) must be escaped to \\u0000; last read: '\"<U+0000>'");
+                    json _;
+                    CHECK_THROWS_AS(_ = json::parse(s.begin(), s.end()), json::parse_error&);
+                    CHECK_THROWS_WITH(_ = json::parse(s.begin(), s.end()), "[json.exception.parse_error.101] parse error at line 1, column 2: syntax error while parsing value - invalid string: control character U+0000 (NUL) must be escaped to \\u0000; last read: '\"<U+0000>'");
                 }
             }
 
@@ -873,7 +941,7 @@ TEST_CASE("parser class")
             SECTION("overflow")
             {
                 // overflows during parsing
-                CHECK(not accept_helper("1.18973e+4932"));
+                CHECK(!accept_helper("1.18973e+4932"));
             }
 
             SECTION("invalid numbers")
@@ -1105,8 +1173,8 @@ TEST_CASE("parser class")
                     // only check error message if c is not a control character
                     if (c > 0x1f)
                     {
-                        CHECK_THROWS_WITH(parser_helper(s.c_str()),
-                                          "[json.exception.parse_error.101] parse error at line 1, column 3: syntax error while parsing value - invalid string: forbidden character after backslash; last read: '\"\\" + std::string(1, static_cast<char>(c)) + "'");
+                        CHECK_THROWS_WITH_STD_STR(parser_helper(s.c_str()),
+                                                  "[json.exception.parse_error.101] parse error at line 1, column 3: syntax error while parsing value - invalid string: forbidden character after backslash; last read: '\"\\" + std::string(1, static_cast<char>(c)) + "'");
                     }
                     break;
                 }
@@ -1165,70 +1233,72 @@ TEST_CASE("parser class")
 
                 if (valid(c))
                 {
-                    CAPTURE(s1);
+                    CAPTURE(s1)
                     CHECK_NOTHROW(parser_helper(s1.c_str()));
-                    CAPTURE(s2);
+                    CAPTURE(s2)
                     CHECK_NOTHROW(parser_helper(s2.c_str()));
-                    CAPTURE(s3);
+                    CAPTURE(s3)
                     CHECK_NOTHROW(parser_helper(s3.c_str()));
-                    CAPTURE(s4);
+                    CAPTURE(s4)
                     CHECK_NOTHROW(parser_helper(s4.c_str()));
                 }
                 else
                 {
-                    CAPTURE(s1);
+                    CAPTURE(s1)
                     CHECK_THROWS_AS(parser_helper(s1.c_str()), json::parse_error&);
                     // only check error message if c is not a control character
                     if (c > 0x1f)
                     {
-                        CHECK_THROWS_WITH(parser_helper(s1.c_str()),
-                                          "[json.exception.parse_error.101] parse error at line 1, column 7: syntax error while parsing value - invalid string: '\\u' must be followed by 4 hex digits; last read: '" + s1.substr(0, 7) + "'");
+                        CHECK_THROWS_WITH_STD_STR(parser_helper(s1.c_str()),
+                                                  "[json.exception.parse_error.101] parse error at line 1, column 7: syntax error while parsing value - invalid string: '\\u' must be followed by 4 hex digits; last read: '" + s1.substr(0, 7) + "'");
                     }
 
-                    CAPTURE(s2);
+                    CAPTURE(s2)
                     CHECK_THROWS_AS(parser_helper(s2.c_str()), json::parse_error&);
                     // only check error message if c is not a control character
                     if (c > 0x1f)
                     {
-                        CHECK_THROWS_WITH(parser_helper(s2.c_str()),
-                                          "[json.exception.parse_error.101] parse error at line 1, column 6: syntax error while parsing value - invalid string: '\\u' must be followed by 4 hex digits; last read: '" + s2.substr(0, 6) + "'");
+                        CHECK_THROWS_WITH_STD_STR(parser_helper(s2.c_str()),
+                                                  "[json.exception.parse_error.101] parse error at line 1, column 6: syntax error while parsing value - invalid string: '\\u' must be followed by 4 hex digits; last read: '" + s2.substr(0, 6) + "'");
                     }
 
-                    CAPTURE(s3);
+                    CAPTURE(s3)
                     CHECK_THROWS_AS(parser_helper(s3.c_str()), json::parse_error&);
                     // only check error message if c is not a control character
                     if (c > 0x1f)
                     {
-                        CHECK_THROWS_WITH(parser_helper(s3.c_str()),
-                                          "[json.exception.parse_error.101] parse error at line 1, column 5: syntax error while parsing value - invalid string: '\\u' must be followed by 4 hex digits; last read: '" + s3.substr(0, 5) + "'");
+                        CHECK_THROWS_WITH_STD_STR(parser_helper(s3.c_str()),
+                                                  "[json.exception.parse_error.101] parse error at line 1, column 5: syntax error while parsing value - invalid string: '\\u' must be followed by 4 hex digits; last read: '" + s3.substr(0, 5) + "'");
                     }
 
-                    CAPTURE(s4);
+                    CAPTURE(s4)
                     CHECK_THROWS_AS(parser_helper(s4.c_str()), json::parse_error&);
                     // only check error message if c is not a control character
                     if (c > 0x1f)
                     {
-                        CHECK_THROWS_WITH(parser_helper(s4.c_str()),
-                                          "[json.exception.parse_error.101] parse error at line 1, column 4: syntax error while parsing value - invalid string: '\\u' must be followed by 4 hex digits; last read: '" + s4.substr(0, 4) + "'");
+                        CHECK_THROWS_WITH_STD_STR(parser_helper(s4.c_str()),
+                                                  "[json.exception.parse_error.101] parse error at line 1, column 4: syntax error while parsing value - invalid string: '\\u' must be followed by 4 hex digits; last read: '" + s4.substr(0, 4) + "'");
                     }
                 }
             }
         }
 
+        json _;
+
         // missing part of a surrogate pair
-        CHECK_THROWS_AS(json::parse("\"\\uD80C\""), json::parse_error&);
-        CHECK_THROWS_WITH(json::parse("\"\\uD80C\""),
-                          "[json.exception.parse_error.101] parse error at line 1, column 8: syntax error while parsing value - invalid string: surrogate U+DC00..U+DFFF must be followed by U+DC00..U+DFFF; last read: '\"\\uD80C\"'");
+        CHECK_THROWS_AS(_ = json::parse("\"\\uD80C\""), json::parse_error&);
+        CHECK_THROWS_WITH(_ = json::parse("\"\\uD80C\""),
+                          "[json.exception.parse_error.101] parse error at line 1, column 8: syntax error while parsing value - invalid string: surrogate U+D800..U+DBFF must be followed by U+DC00..U+DFFF; last read: '\"\\uD80C\"'");
         // invalid surrogate pair
-        CHECK_THROWS_AS(json::parse("\"\\uD80C\\uD80C\""), json::parse_error&);
-        CHECK_THROWS_AS(json::parse("\"\\uD80C\\u0000\""), json::parse_error&);
-        CHECK_THROWS_AS(json::parse("\"\\uD80C\\uFFFF\""), json::parse_error&);
-        CHECK_THROWS_WITH(json::parse("\"\\uD80C\\uD80C\""),
-                          "[json.exception.parse_error.101] parse error at line 1, column 13: syntax error while parsing value - invalid string: surrogate U+DC00..U+DFFF must be followed by U+DC00..U+DFFF; last read: '\"\\uD80C\\uD80C'");
-        CHECK_THROWS_WITH(json::parse("\"\\uD80C\\u0000\""),
-                          "[json.exception.parse_error.101] parse error at line 1, column 13: syntax error while parsing value - invalid string: surrogate U+DC00..U+DFFF must be followed by U+DC00..U+DFFF; last read: '\"\\uD80C\\u0000'");
-        CHECK_THROWS_WITH(json::parse("\"\\uD80C\\uFFFF\""),
-                          "[json.exception.parse_error.101] parse error at line 1, column 13: syntax error while parsing value - invalid string: surrogate U+DC00..U+DFFF must be followed by U+DC00..U+DFFF; last read: '\"\\uD80C\\uFFFF'");
+        CHECK_THROWS_AS(_ = json::parse("\"\\uD80C\\uD80C\""), json::parse_error&);
+        CHECK_THROWS_AS(_ = json::parse("\"\\uD80C\\u0000\""), json::parse_error&);
+        CHECK_THROWS_AS(_ = json::parse("\"\\uD80C\\uFFFF\""), json::parse_error&);
+        CHECK_THROWS_WITH(_ = json::parse("\"\\uD80C\\uD80C\""),
+                          "[json.exception.parse_error.101] parse error at line 1, column 13: syntax error while parsing value - invalid string: surrogate U+D800..U+DBFF must be followed by U+DC00..U+DFFF; last read: '\"\\uD80C\\uD80C'");
+        CHECK_THROWS_WITH(_ = json::parse("\"\\uD80C\\u0000\""),
+                          "[json.exception.parse_error.101] parse error at line 1, column 13: syntax error while parsing value - invalid string: surrogate U+D800..U+DBFF must be followed by U+DC00..U+DFFF; last read: '\"\\uD80C\\u0000'");
+        CHECK_THROWS_WITH(_ = json::parse("\"\\uD80C\\uFFFF\""),
+                          "[json.exception.parse_error.101] parse error at line 1, column 13: syntax error while parsing value - invalid string: surrogate U+D800..U+DBFF must be followed by U+DC00..U+DFFF; last read: '\"\\uD80C\\uFFFF'");
     }
 
     SECTION("parse errors (accept)")
@@ -1383,27 +1453,27 @@ TEST_CASE("parser class")
 
                 if (valid(c))
                 {
-                    CAPTURE(s1);
+                    CAPTURE(s1)
                     CHECK(json::parser(nlohmann::detail::input_adapter(std::string(s1.c_str()))).accept());
-                    CAPTURE(s2);
+                    CAPTURE(s2)
                     CHECK(json::parser(nlohmann::detail::input_adapter(std::string(s2.c_str()))).accept());
-                    CAPTURE(s3);
+                    CAPTURE(s3)
                     CHECK(json::parser(nlohmann::detail::input_adapter(std::string(s3.c_str()))).accept());
-                    CAPTURE(s4);
+                    CAPTURE(s4)
                     CHECK(json::parser(nlohmann::detail::input_adapter(std::string(s4.c_str()))).accept());
                 }
                 else
                 {
-                    CAPTURE(s1);
+                    CAPTURE(s1)
                     CHECK(json::parser(nlohmann::detail::input_adapter(std::string(s1.c_str()))).accept() == false);
 
-                    CAPTURE(s2);
+                    CAPTURE(s2)
                     CHECK(json::parser(nlohmann::detail::input_adapter(std::string(s2.c_str()))).accept() == false);
 
-                    CAPTURE(s3);
+                    CAPTURE(s3)
                     CHECK(json::parser(nlohmann::detail::input_adapter(std::string(s3.c_str()))).accept() == false);
 
-                    CAPTURE(s4);
+                    CAPTURE(s4)
                     CHECK(json::parser(nlohmann::detail::input_adapter(std::string(s4.c_str()))).accept() == false);
                 }
             }
@@ -1419,7 +1489,7 @@ TEST_CASE("parser class")
 
     SECTION("tests found by mutate++")
     {
-        // test case to make sure no comma preceeds the first key
+        // test case to make sure no comma precedes the first key
         CHECK_THROWS_AS(parser_helper("{,\"key\": false}"), json::parse_error&);
         CHECK_THROWS_WITH(parser_helper("{,\"key\": false}"),
                           "[json.exception.parse_error.101] parse error at line 1, column 2: syntax error while parsing object key - unexpected ','; expected string literal");
@@ -1460,6 +1530,18 @@ TEST_CASE("parser class")
 
         auto s_array = R"(
             [1,2,[3,4,5],4,5]
+        )";
+
+        auto structured_array = R"(
+            [
+                1,
+                {
+                     "foo": "bar"
+                },
+                {
+                     "qux": "baz"
+                }
+            ]
         )";
 
         SECTION("filter nothing")
@@ -1530,6 +1612,41 @@ TEST_CASE("parser class")
             CHECK (j_array == json({1, {3, 4, 5}, 4, 5}));
         }
 
+        SECTION("filter object in array")
+        {
+            json j_filtered1 = json::parse(structured_array, [](int, json::parse_event_t e, const json & parsed)
+            {
+                if (e == json::parse_event_t::object_end && parsed.contains("foo"))
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            });
+
+            // the specified object will be discarded, and removed.
+            CHECK (j_filtered1.size() == 2);
+            CHECK (j_filtered1 == json({1, {{"qux", "baz"}}}));
+
+            json j_filtered2 = json::parse(structured_array, [](int, json::parse_event_t e, const json& /*parsed*/)
+            {
+                if (e == json::parse_event_t::object_end)
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            });
+
+            // removed all objects in array.
+            CHECK (j_filtered2.size() == 1);
+            CHECK (j_filtered2 == json({1}));
+        }
+
         SECTION("filter specific events")
         {
             SECTION("first closing event")
@@ -1538,7 +1655,7 @@ TEST_CASE("parser class")
                     json j_object = json::parse(s_object, [](int, json::parse_event_t e, const json&)
                     {
                         static bool first = true;
-                        if (e == json::parse_event_t::object_end and first)
+                        if (e == json::parse_event_t::object_end && first)
                         {
                             first = false;
                             return false;
@@ -1557,7 +1674,7 @@ TEST_CASE("parser class")
                     json j_array = json::parse(s_array, [](int, json::parse_event_t e, const json&)
                     {
                         static bool first = true;
-                        if (e == json::parse_event_t::array_end and first)
+                        if (e == json::parse_event_t::array_end && first)
                         {
                             first = false;
                             return false;
@@ -1675,12 +1792,13 @@ TEST_CASE("parser class")
 
             CHECK(json::parse("{\"foo\": true:", cb, false).is_discarded());
 
-            CHECK_THROWS_AS(json::parse("{\"foo\": true:", cb), json::parse_error&);
-            CHECK_THROWS_WITH(json::parse("{\"foo\": true:", cb),
+            json _;
+            CHECK_THROWS_AS(_ = json::parse("{\"foo\": true:", cb), json::parse_error&);
+            CHECK_THROWS_WITH(_ = json::parse("{\"foo\": true:", cb),
                               "[json.exception.parse_error.101] parse error at line 1, column 13: syntax error while parsing object - unexpected ':'; expected '}'");
 
-            CHECK_THROWS_AS(json::parse("1.18973e+4932", cb), json::out_of_range&);
-            CHECK_THROWS_WITH(json::parse("1.18973e+4932", cb),
+            CHECK_THROWS_AS(_ = json::parse("1.18973e+4932", cb), json::out_of_range&);
+            CHECK_THROWS_WITH(_ = json::parse("1.18973e+4932", cb),
                               "[json.exception.out_of_range.406] number overflow parsing '1.18973e+4932'");
         }
 
@@ -1758,5 +1876,11 @@ TEST_CASE("parser class")
                 CHECK(json::sax_parse("\"foo\"", &s) == false);
             }
         }
+    }
+
+    SECTION("error messages for comments")
+    {
+        CHECK_THROWS_WITH_AS(json::parse("/a", nullptr, true, true), "[json.exception.parse_error.101] parse error at line 1, column 2: syntax error while parsing value - invalid comment; expecting '/' or '*' after '/'; last read: '/a'", json::parse_error);
+        CHECK_THROWS_WITH_AS(json::parse("/*", nullptr, true, true), "[json.exception.parse_error.101] parse error at line 1, column 3: syntax error while parsing value - invalid comment; missing closing '*/'; last read: '/*<U+0000>'", json::parse_error);
     }
 }

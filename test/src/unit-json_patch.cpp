@@ -1,12 +1,12 @@
 /*
     __ _____ _____ _____
  __|  |   __|     |   | |  JSON for Modern C++ (test suite)
-|  |  |__   |  |  | | | |  version 3.5.0
+|  |  |__   |  |  | | | |  version 3.9.1
 |_____|_____|_____|_|___|  https://github.com/nlohmann/json
 
 Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 SPDX-License-Identifier: MIT
-Copyright (c) 2013-2018 Niels Lohmann <http://nlohmann.me>.
+Copyright (c) 2013-2019 Niels Lohmann <http://nlohmann.me>.
 
 Permission is hereby  granted, free of charge, to any  person obtaining a copy
 of this software and associated  documentation files (the "Software"), to deal
@@ -27,12 +27,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "catch.hpp"
+#include "doctest_compatibility.h"
 
 #include <nlohmann/json.hpp>
 using nlohmann::json;
 
 #include <fstream>
+#include <test_data.hpp>
 
 TEST_CASE("JSON patch")
 {
@@ -342,7 +343,7 @@ TEST_CASE("JSON patch")
 
             // check that evaluation throws
             CHECK_THROWS_AS(doc.patch(patch), json::other_error&);
-            CHECK_THROWS_WITH(doc.patch(patch), "[json.exception.other_error.501] unsuccessful: " + patch[0].dump());
+            CHECK_THROWS_WITH_STD_STR(doc.patch(patch), "[json.exception.other_error.501] unsuccessful: " + patch[0].dump());
         }
 
         SECTION("A.10. Adding a Nested Member Object")
@@ -483,7 +484,7 @@ TEST_CASE("JSON patch")
 
             // check that evaluation throws
             CHECK_THROWS_AS(doc.patch(patch), json::other_error&);
-            CHECK_THROWS_WITH(doc.patch(patch), "[json.exception.other_error.501] unsuccessful: " + patch[0].dump());
+            CHECK_THROWS_WITH_STD_STR(doc.patch(patch), "[json.exception.other_error.501] unsuccessful: " + patch[0].dump());
         }
 
         SECTION("A.16. Adding an Array Value")
@@ -1182,7 +1183,7 @@ TEST_CASE("JSON patch")
 
                 // the test will fail
                 CHECK_THROWS_AS(doc.patch(patch), json::other_error&);
-                CHECK_THROWS_WITH(doc.patch(patch), "[json.exception.other_error.501] unsuccessful: " + patch[0].dump());
+                CHECK_THROWS_WITH_STD_STR(doc.patch(patch), "[json.exception.other_error.501] unsuccessful: " + patch[0].dump());
             }
         }
     }
@@ -1258,17 +1259,18 @@ TEST_CASE("JSON patch")
     SECTION("Tests from github.com/json-patch/json-patch-tests")
     {
         for (auto filename :
-                {"test/data/json-patch-tests/spec_tests.json",
-                 "test/data/json-patch-tests/tests.json"
+                {
+                    TEST_DATA_DIRECTORY "/json-patch-tests/spec_tests.json",
+                    TEST_DATA_DIRECTORY "/json-patch-tests/tests.json"
                 })
         {
-            CAPTURE(filename);
+            CAPTURE(filename)
             std::ifstream f(filename);
             json suite = json::parse(f);
 
             for (const auto& test : suite)
             {
-                CAPTURE(test.value("comment", ""))
+                INFO_WITH_TEMP(test.value("comment", ""));
 
                 // skip tests marked as disabled
                 if (test.value("disabled", false))
