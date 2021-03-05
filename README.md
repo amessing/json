@@ -14,7 +14,6 @@
 [![Try online](https://img.shields.io/badge/try-online-blue.svg)](https://wandbox.org/permlink/3lCHrFUZANONKv7a)
 [![Documentation](https://img.shields.io/badge/docs-doxygen-blue.svg)](https://nlohmann.github.io/json/doxygen/index.html)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/nlohmann/json/master/LICENSE.MIT)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fnlohmann%2Fjson.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fnlohmann%2Fjson?ref=badge_shield)
 [![GitHub Releases](https://img.shields.io/github/release/nlohmann/json.svg)](https://github.com/nlohmann/json/releases)
 [![GitHub Downloads](https://img.shields.io/github/downloads/nlohmann/json/total)](https://github.com/nlohmann/json/releases)
 [![GitHub Issues](https://img.shields.io/github/issues/nlohmann/json.svg)](https://github.com/nlohmann/json/issues)
@@ -77,6 +76,7 @@ You can sponsor this library at [GitHub Sponsors](https://github.com/sponsors/nl
 - [Stefan Hagen](https://github.com/sthagen)
 - [Steve Sperandeo](https://github.com/homer6)
 - [Robert Jefe Lindstädt](https://github.com/eljefedelrodeodeljefe)
+- [Steve Wagner](https://github.com/ciroque)
 
 Thanks everyone!
 
@@ -231,6 +231,15 @@ If you are using [`build2`](https://build2.org), you can use the [`nlohmann-json
 Please file issues [here](https://github.com/build2-packaging/nlohmann-json) if you experience problems with the packages.
 
 If you are using [`wsjcpp`](https://wsjcpp.org), you can use the command `wsjcpp install "https://github.com/nlohmann/json:develop"` to get the latest version. Note you can change the branch ":develop" to an existing tag or another branch.
+
+If you are using [`CPM.cmake`](https://github.com/TheLartians/CPM.cmake), you can check this [`example`](https://github.com/TheLartians/CPM.cmake/tree/master/examples/json). After [adding CPM script](https://github.com/TheLartians/CPM.cmake#adding-cpm) to your project, implement the following snippet to your CMake:
+
+```cmake
+CPMAddPackage(
+    NAME nlohmann_json
+    GITHUB_REPOSITORY nlohmann/json
+    VERSION 3.9.1)
+```
 
 ### Pkg-config
 
@@ -568,7 +577,7 @@ j[1] = 42;
 bool foo = j.at(2);
 
 // comparison
-j == "[\"foo\", 42, true]"_json;  // true
+j == "[\"foo\", 42, true, 1.78]"_json;  // true
 
 // other stuff
 j.size();     // 3 entries
@@ -1190,11 +1199,11 @@ auto cbor = json::to_msgpack(j); // 0xD5 (fixext2), 0x10, 0xCA, 0xFE
 
 ## Supported compilers
 
-Though it's 2020 already, the support for C++11 is still a bit sparse. Currently, the following compilers are known to work:
+Though it's 2021 already, the support for C++11 is still a bit sparse. Currently, the following compilers are known to work:
 
-- GCC 4.8 - 10.1 (and possibly later)
-- Clang 3.4 - 10.0 (and possibly later)
-- Apple Clang 9.1 - 12.0 (and possibly later)
+- GCC 4.8 - 11.0 (and possibly later)
+- Clang 3.4 - 11.0 (and possibly later)
+- Apple Clang 9.1 - 12.3 (and possibly later)
 - Intel C++ Compiler 17.0.2 (and possibly later)
 - Microsoft Visual C++ 2015 / Build Tools 14.0.25123.0 (and possibly later)
 - Microsoft Visual C++ 2017 / Build Tools 15.5.180.51428 (and possibly later)
@@ -1221,41 +1230,37 @@ Please note:
 
 The following compilers are currently used in continuous integration at [Travis](https://travis-ci.org/nlohmann/json), [AppVeyor](https://ci.appveyor.com/project/nlohmann/json), [GitHub Actions](https://github.com/nlohmann/json/actions), and [CircleCI](https://circleci.com/gh/nlohmann/json):
 
-| Compiler                                                        | Operating System   | CI Provider    |
-|-----------------------------------------------------------------|--------------------|----------------|
-| Apple Clang 9.1.0 (clang-902.0.39.1); Xcode 9.3                 | macOS 10.13.3      | Travis         |
-| Apple Clang 9.1.0 (clang-902.0.39.2); Xcode 9.4.1               | macOS 10.13.6      | Travis         |
-| Apple Clang 10.0.0 (clang-1000.11.45.2); Xcode 10.0             | macOS 10.13.6      | Travis         |
-| Apple Clang 10.0.0 (clang-1000.11.45.5); Xcode 10.1             | macOS 10.13.6      | Travis         |
-| Apple Clang 10.0.1 (clang-1001.0.46.4); Xcode 10.2.1            | macOS 10.14.4      | Travis         |
-| Apple Clang 11.0.0 (clang-1100.0.33.12); Xcode 11.2.1           | macOS 10.14.6      | Travis         |
-| Apple Clang 11.0.3 (clang-1103.0.32.59); Xcode 11.4.1           | macOS 10.15.4      | GitHub Actions |
-| Apple Clang 12.0.0 (clang-1200.0.22.7); Xcode 11.4.1            | macOS 10.15.5      | Travis         |
-| Clang 3.5.0 (3.5.0-4ubuntu2~trusty2)                            | Ubuntu 14.04.5 LTS | Travis         |
-| Clang 3.6.2 (3.6.2-svn240577-1~exp1)                            | Ubuntu 14.04.5 LTS | Travis         |
-| Clang 3.7.1 (3.7.1-svn253571-1~exp1)                            | Ubuntu 14.04.5 LTS | Travis         |
-| Clang 3.8.0 (3.8.0-2ubuntu3~trusty5)                            | Ubuntu 14.04.5 LTS | Travis         |
-| Clang 3.9.1 (3.9.1-4ubuntu3~14.04.3)                            | Ubuntu 14.04.5 LTS | Travis         |
-| Clang 4.0.1 (4.0.1-svn305264-1~exp1)                            | Ubuntu 14.04.5 LTS | Travis         |
-| Clang 5.0.2 (version 5.0.2-svn328729-1~exp1~20180509123505.100) | Ubuntu 14.04.5 LTS | Travis         |
-| Clang 6.0.1 (6.0.1-svn334776-1~exp1~20190309042707.121)         | Ubuntu 14.04.5 LTS | Travis         |
-| Clang 7.1.0 (7.1.0-svn353565-1~exp1~20190419134007.64)          | Ubuntu 14.04.5 LTS | Travis         |
-| Clang 7.5.0 (Ubuntu 7.5.0-3ubuntu1~18.04)                       | Ubuntu 18.04.4 LTS | Travis         |
-| Clang 9.0.0 (x86_64-pc-windows-msvc)                            | Windows-10.0.17763 | GitHub Actions |
-| Clang 10.0.0 (x86_64-pc-windows-msvc)                           | Windows-10.0.17763 | GitHub Actions |
-| GCC 4.8.5 (Ubuntu 4.8.5-4ubuntu8~14.04.2)                       | Ubuntu 14.04.5 LTS | Travis         |
-| GCC 4.9.4 (Ubuntu 4.9.4-2ubuntu1~14.04.1)                       | Ubuntu 14.04.5 LTS | Travis         |
-| GCC 5.5.0 (Ubuntu 5.5.0-12ubuntu1~14.04)                        | Ubuntu 14.04.5 LTS | Travis         |
-| GCC 6.3.0 (Debian 6.3.0-18+deb9u1)                              | Debian 9           | Circle CI      |
-| GCC 6.5.0 (Ubuntu 6.5.0-2ubuntu1~14.04.1)                       | Ubuntu 14.04.5 LTS | Travis         |
-| GCC 7.3.0 (x86_64-posix-seh-rev0, Built by MinGW-W64 project)   | Windows-6.3.9600   | AppVeyor       |
-| GCC 7.5.0 (Ubuntu 7.5.0-3ubuntu1~14.04.1)                       | Ubuntu 14.04.5 LTS | Travis         |
-| GCC 7.5.0 (Ubuntu 7.5.0-3ubuntu1~18.04)                         | Ubuntu 18.04.4 LTS | GitHub Actions |
-| GCC 8.4.0 (Ubuntu 8.4.0-1ubuntu1~14.04)                         | Ubuntu 14.04.5 LTS | Travis         |
-| GCC 9.3.0 (Ubuntu 9.3.0-11ubuntu0~14.04)                        | Ubuntu 14.04.5 LTS | Travis         |
-| GCC 10.1.0 (Arch Linux latest)                                  | Arch Linux         | Circle CI      |
-| MSVC 19.0.24241.7 (Build Engine version 14.0.25420.1)           | Windows-6.3.9600   | AppVeyor       |
-| MSVC 19.16.27035.0 (15.9.21+g9802d43bc3 for .NET Framework)     | Windows-10.0.14393 | AppVeyor       |
+| Compiler                                                          | Operating System   | CI Provider    |
+|-------------------------------------------------------------------|--------------------|----------------|
+| Apple Clang 10.0.1 (clang-1001.0.46.4); Xcode 10.2.1              | macOS 10.14.4      | Travis         |
+| Apple Clang 11.0.0 (clang-1100.0.33.12); Xcode 11.2.1             | macOS 10.14.6      | Travis         |
+| Apple Clang 11.0.3 (clang-1103.0.32.59); Xcode 11.4.1             | macOS 10.15.4      | GitHub Actions |
+| Apple Clang 12.0.0 (clang-1200.0.22.7); Xcode 11.4.1              | macOS 10.15.5      | Travis         |
+| Clang 3.5.0 (3.5.0-4ubuntu2\~trusty2)                             | Ubuntu 14.04.5 LTS | Travis         |
+| Clang 3.6.2 (3.6.2-svn240577-1\~exp1)                             | Ubuntu 14.04.5 LTS | Travis         |
+| Clang 3.7.1 (3.7.1-svn253571-1\~exp1)                             | Ubuntu 14.04.5 LTS | Travis         |
+| Clang 3.8.0 (3.8.0-2ubuntu3\~trusty5)                             | Ubuntu 14.04.5 LTS | Travis         |
+| Clang 3.9.1 (3.9.1-4ubuntu3\~14.04.3)                             | Ubuntu 14.04.5 LTS | Travis         |
+| Clang 4.0.1 (4.0.1-svn305264-1\~exp1)                             | Ubuntu 14.04.5 LTS | Travis         |
+| Clang 5.0.2 (version 5.0.2-svn328729-1\~exp1\~20180509123505.100) | Ubuntu 14.04.5 LTS | Travis         |
+| Clang 6.0.1 (6.0.1-svn334776-1\~exp1\~20190309042707.121)         | Ubuntu 14.04.5 LTS | Travis         |
+| Clang 7.1.0 (7.1.0-svn353565-1\~exp1\~20190419134007.64)          | Ubuntu 14.04.5 LTS | Travis         |
+| Clang 7.5.0 (Ubuntu 7.5.0-3ubuntu1\~18.04)                        | Ubuntu 18.04.4 LTS | Travis         |
+| Clang 9.0.0 (x86_64-pc-windows-msvc)                              | Windows-10.0.17763 | GitHub Actions |
+| Clang 10.0.0 (x86_64-pc-windows-msvc)                             | Windows-10.0.17763 | GitHub Actions |
+| GCC 4.8.5 (Ubuntu 4.8.5-4ubuntu8\~14.04.2)                        | Ubuntu 14.04.5 LTS | Travis         |
+| GCC 4.9.4 (Ubuntu 4.9.4-2ubuntu1\~14.04.1)                        | Ubuntu 14.04.5 LTS | Travis         |
+| GCC 5.5.0 (Ubuntu 5.5.0-12ubuntu1\~14.04)                         | Ubuntu 14.04.5 LTS | Travis         |
+| GCC 6.3.0 (Debian 6.3.0-18+deb9u1)                                | Debian 9           | Circle CI      |
+| GCC 6.5.0 (Ubuntu 6.5.0-2ubuntu1\~14.04.1)                        | Ubuntu 14.04.5 LTS | Travis         |
+| GCC 7.3.0 (x86_64-posix-seh-rev0, Built by MinGW-W64 project)     | Windows-6.3.9600   | AppVeyor       |
+| GCC 7.5.0 (Ubuntu 7.5.0-3ubuntu1\~14.04.1)                        | Ubuntu 14.04.5 LTS | Travis         |
+| GCC 7.5.0 (Ubuntu 7.5.0-3ubuntu1\~18.04)                          | Ubuntu 18.04.4 LTS | GitHub Actions |
+| GCC 8.4.0 (Ubuntu 8.4.0-1ubuntu1\~14.04)                          | Ubuntu 14.04.5 LTS | Travis         |
+| GCC 9.3.0 (Ubuntu 9.3.0-11ubuntu0\~14.04)                         | Ubuntu 14.04.5 LTS | Travis         |
+| GCC 10.1.0 (Arch Linux latest)                                    | Arch Linux         | Circle CI      |
+| MSVC 19.0.24241.7 (Build Engine version 14.0.25420.1)             | Windows-6.3.9600   | AppVeyor       |
+| MSVC 19.16.27035.0 (15.9.21+g9802d43bc3 for .NET Framework)       | Windows-10.0.14393 | AppVeyor       |
 | MSVC 19.25.28614.0 (Build Engine version 16.5.0+d4cbfca49 for .NET Framework) | Windows-10.0.17763  | AppVeyor       |
 | MSVC 19.25.28614.0 (Build Engine version 16.5.0+d4cbfca49 for .NET Framework) | Windows-10.0.17763  | GitHub Actions |
 | MSVC 19.25.28614.0 (Build Engine version 16.5.0+d4cbfca49 for .NET Framework) with ClangCL 10.0.0 | Windows-10.0.17763  | GitHub Actions |
@@ -1266,7 +1271,7 @@ The following compilers are currently used in continuous integration at [Travis]
 
 The class is licensed under the [MIT License](http://opensource.org/licenses/MIT):
 
-Copyright &copy; 2013-2019 [Niels Lohmann](http://nlohmann.me)
+Copyright &copy; 2013-2021 [Niels Lohmann](https://nlohmann.me)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -1523,6 +1528,7 @@ I deeply appreciate the help of the following people.
 - [KonanM](https://github.com/KonanM) proposed an implementation for the `NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE`/`NLOHMANN_DEFINE_TYPE_INTRUSIVE` macros.
 - [Guillaume Racicot](https://github.com/gracicot) implemented `string_view` support and allowed C++20 support.
 - [Alex Reinking](https://github.com/alexreinking) improved CMake support for `FetchContent`.
+- [Hannes Domani](https://github.com/ssbssa) provided a GDB pretty printer.
 
 Thanks a lot for helping out! Please [let me know](mailto:mail@nlohmann.me) if I forgot someone.
 
@@ -1629,5 +1635,9 @@ $ ctest --output-on-failure
 Note that during the `ctest` stage, several JSON test files are downloaded from an [external repository](https://github.com/nlohmann/json_test_data). If policies forbid downloading artifacts during testing, you can download the files yourself and pass the directory with the test files via `-DJSON_TestDataDirectory=path` to CMake. Then, no Internet connectivity is required. See [issue #2189](https://github.com/nlohmann/json/issues/2189) for more information.
 
 In case you have downloaded the library rather than checked out the code via Git, test `cmake_fetch_content_configure`. Please execute `ctest -LE git_required` to skip these tests. See [issue #2189](https://github.com/nlohmann/json/issues/2189) for more information.
+
+Some tests change the installed files and hence make the whole process not reproducible. Please execute `ctest -LE not_reproducible` to skip these tests. See [issue #2324](https://github.com/nlohmann/json/issues/2324) for more information.
+
+Note you need to call `cmake -LE "not_reproducible|git_required"` to exclude both labels. See [issue #2596](https://github.com/nlohmann/json/issues/2596) for more information.
 
 As Intel compilers use unsafe floating point optimization by default, the unit tests may fail. Use flag [`/fp:precise`](https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/compiler-options/compiler-option-details/floating-point-options/fp-model-fp.html) then.

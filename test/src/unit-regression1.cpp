@@ -394,13 +394,17 @@ TEST_CASE("regression tests 1")
         // improve coverage
         o["int"] = 1;
         CHECK_THROWS_AS(s2 = o["int"], json::type_error);
+#if JSON_DIAGNOSTICS
+        CHECK_THROWS_WITH(s2 = o["int"], "[json.exception.type_error.302] (/int) type must be string, but is number");
+#else
         CHECK_THROWS_WITH(s2 = o["int"], "[json.exception.type_error.302] type must be string, but is number");
+#endif
     }
 #endif
 
     SECTION("issue #146 - character following a surrogate pair is skipped")
     {
-        CHECK(json::parse("\"\\ud80c\\udc60abc\"").get<json::string_t>() == u8"\U00013060abc");
+        CHECK(json::parse("\"\\ud80c\\udc60abc\"").get<json::string_t>() == "\xf0\x93\x81\xa0\x61\x62\x63");
     }
 
     SECTION("issue #171 - Cannot index by key of type static constexpr const char*")
