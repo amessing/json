@@ -12,7 +12,7 @@ project(nlohmann_json VERSION 3.9.1 LANGUAGES CXX)
 ##
 set(MAIN_PROJECT OFF)
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-  set(MAIN_PROJECT ON)
+    set(MAIN_PROJECT ON)
 endif()
 
 ##
@@ -35,6 +35,11 @@ option(JSON_Install "Install CMake targets during install step." ${MAIN_PROJECT}
 option(JSON_MultipleHeaders "Use non-amalgamated version of the library." OFF)
 option(JSON_ImplicitConversions "Enable implicit conversions." ON)
 option(JSON_Diagnostics "Enable better diagnostic messages." OFF)
+option(JSON_CI "Enable CI build targets." OFF)
+
+if (JSON_CI)
+    include(cmake/ci.cmake)
+endif ()
 
 ##
 ## CONFIGURATION
@@ -108,8 +113,8 @@ endif()
 
 # Install a pkg-config file, so other tools can find this.
 CONFIGURE_FILE(
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/pkg-config.pc.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/pkg-config.pc.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
 )
 
 ##
@@ -155,7 +160,7 @@ if(JSON_Install)
             FILES ${NLOHMANN_NATVIS_FILE}
             DESTINATION .
     )
-endif()
+    endif()
     export(
         TARGETS ${NLOHMANN_JSON_TARGET_NAME}
         NAMESPACE ${PROJECT_NAME}::
